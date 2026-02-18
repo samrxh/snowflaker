@@ -132,23 +132,24 @@ def solver(board, row=0, col=3):
 # have it go row by row, inputting the cells for the board when blank
 # then have it go row by row inputting what has been written
 # solver can take the first input and solve it, then compare the second input to the solution and spit out mistake cells
-def new_board():
+def new_board(board=None):
     # indicate whether the board is small or big
     size = None
     while size not in [1, 2]:
         size = int(input("Enter 1 for a small board, 2 for a big board: "))
 
-    if size == 1:
-        board = deepcopy(default_board)
-    elif size == 2:
-        board = deepcopy(default_big_board)
+    if board is None:
+        if size == 1:
+            board = deepcopy(default_board)
+        elif size == 2:
+            board = deepcopy(default_big_board)
 
     print("Enter the values for each cell.")
 
     if size == 1:
         for i in range(len(board)):
             for j in range(len(board[i])):
-                if board[i][j] == 9:
+                if board[i][j] in [1, 2, 3, 4, 5, 6, 9]:
                     continue
                 if i in [0, 5]:
                     while True:
@@ -180,7 +181,7 @@ def new_board():
     if size == 2:
         for i in range(len(board)):
             for j in range(len(board[i])):
-                if board[i][j] == 9:
+                if board[i][j] in [1, 2, 3, 4, 5, 6, 9]:
                     continue
                 if i in [0, 9]:
                     while True:
@@ -224,6 +225,21 @@ def new_board():
 
     return board
 
+
+# we can use new_board() to input a fresh board, an incorrect board, and its actual solution
+def find_mistakes():
+    print("Input the board with only the original digits, pressing enter to skip a cell:")
+    original_board = new_board()
+
+    print("Input the board with what you have entered")
+    incorrect_board = new_board(deepcopy(original_board))
+
+    solved_board = solver(deepcopy(original_board))
+
+    for i in range(len(solved_board)):
+        for j in range(len(solved_board[0])):
+            if solved_board[i][j] != incorrect_board[i][j]:
+                print(f"Cell at {i}, {j} is not {incorrect_board[i][j]}.")
 
 # now that we have a solver we can create a generator
 # it may be helpful to consider how many possible puzzles there are as well as how many given cells are needed
