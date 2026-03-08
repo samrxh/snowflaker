@@ -3,7 +3,7 @@ from time import perf_counter
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -46,26 +46,31 @@ default_big_board = [
 ]
 
 
-small_grid = deepcopy(default_board)
-big_grid = deepcopy(default_big_board)
+BOARD_TEMPLATES = {
+    "small": default_board,
+    "big": default_big_board,
+}
+
+ACTIVE_BOARDS = {
+    "small": deepcopy(default_board),
+    "big": deepcopy(default_big_board),
+}
+
+
+def get_board_ref(size: str):
+    if size not in ACTIVE_BOARDS:
+        raise HTTPException(status_code=400, detail="Invalid board size.")
+    return ACTIVE_BOARDS[size]
 
 
 @app.get("/board")
 async def get_board(size: str = "small"):
-    if size == "small":
-        grid = small_grid
-    elif size == "big":
-        grid = big_grid
-    else:
-        grid = small_grid
+    grid = get_board_ref(size)
     return {"grid": grid}
 
 @app.post("/update")
 async def update_cell(row: int, col: int, value: int, size: str = "small"):
-    if size == "big":
-        grid = big_grid
-    else:
-        grid = small_grid
+    grid = get_board_ref(size)
     grid[row][col] = value
     return {"grid": grid}
 
@@ -73,8 +78,28 @@ async def update_cell(row: int, col: int, value: int, size: str = "small"):
 async def save_board(board: list[list[int]]):
     path = save_board_to_file(board)
     return {"path": path}
-    
-    
+
+@app.post("/clear-board")
+async def clear_board(size: str = "small"):
+    grid = get_board_ref(size)
+    grid[:] = deepcopy(BOARD_TEMPLATES[size])
+    return {"grid": grid}
+
+@app.post("/solve-board")
+async def solve_board(size: str = "small"):
+    grid = get_board_ref(size)
+
+    solved_grid = deepcopy(grid)
+    if not solver(solved_grid):
+        raise HTTPException(status_code=400, detail="Board is unsolvable.")
+
+    for row in range(len(grid)):
+        for col in range(len(grid[row])):
+            grid[row][col] = solved_grid[row][col]
+
+    return {"grid": grid}
+
+
 def check_valid_number(board, row, col, num, cell_state):
     def is_conflict(r, c):
         if 0 <= r < len(board) and 0 <= c < len(board[0]):

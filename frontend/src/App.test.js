@@ -17,4 +17,6 @@ test('renders app title and board size controls', async () => {
   expect(await screen.findByRole('heading', { name: /snowflaker/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /small board/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /big board/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /clear board/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /solve board/i })).toBeInTheDocument();
 });

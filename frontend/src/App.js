@@ -71,6 +71,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [savingBoard, setSavingBoard] = useState(false);
+  const [clearingBoard, setClearingBoard] = useState(false);
+  const [solvingBoard, setSolvingBoard] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
   const fetchBoard = useCallback(async () => {
@@ -130,6 +132,68 @@ function App() {
       setSavingBoard(false);
     }
   }, [grid]);
+
+  const handleSolveBoard = useCallback(async () => {
+    setSolvingBoard(true);
+    setSaveStatus("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/solve-board?size=${boardSize}`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        const detail =
+          data && typeof data.detail === "string"
+            ? data.detail
+            : `Solve board failed: ${response.status}`;
+        throw new Error(detail);
+      }
+
+      if (!data.grid || !Array.isArray(data.grid)) {
+        throw new Error("Solve response does not include a valid grid.");
+      }
+
+      setGrid(data.grid);
+      setSaveStatus("Board solved.");
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to solve board.");
+    } finally {
+      setSolvingBoard(false);
+    }
+  }, [boardSize]);
+
+  const handleClearBoard = useCallback(async () => {
+    setClearingBoard(true);
+    setSaveStatus("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/clear-board?size=${boardSize}`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        const detail =
+          data && typeof data.detail === "string"
+            ? data.detail
+            : `Clear board failed: ${response.status}`;
+        throw new Error(detail);
+      }
+
+      if (!data.grid || !Array.isArray(data.grid)) {
+        throw new Error("Clear response does not include a valid grid.");
+      }
+
+      setGrid(data.grid);
+      setSaveStatus("Board cleared.");
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to clear board.");
+    } finally {
+      setClearingBoard(false);
+    }
+  }, [boardSize]);
 
   const svgSize = useMemo(() => {
     if (grid.length === 0) {
@@ -210,9 +274,25 @@ function App() {
         <button
           type="button"
           onClick={handleSaveBoard}
-          disabled={loading || savingBoard || grid.length === 0}
+          disabled={
+            loading || savingBoard || solvingBoard || clearingBoard || grid.length === 0
+          }
         >
           {savingBoard ? "Saving..." : "Save board"}
+        </button>
+        <button
+          type="button"
+          onClick={handleClearBoard}
+          disabled={loading || clearingBoard || savingBoard || solvingBoard || grid.length === 0}
+        >
+          {clearingBoard ? "Clearing..." : "Clear board"}
+        </button>
+        <button
+          type="button"
+          onClick={handleSolveBoard}
+          disabled={loading || solvingBoard || savingBoard || clearingBoard || grid.length === 0}
+        >
+          {solvingBoard ? "Solving..." : "Solve board"}
         </button>
       </div>
 
