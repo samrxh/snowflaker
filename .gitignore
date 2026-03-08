@@ -1,0 +1,2 @@
+backend/saved_boards/*.json
+backend/__pycache__/
