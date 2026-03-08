@@ -56,6 +56,12 @@ ACTIVE_BOARDS = {
     "big": deepcopy(default_big_board),
 }
 
+# Puzzle to solve: set by user via "Set as puzzle". Used to check mistakes.
+PUZZLE_BOARDS = {
+    "small": None,
+    "big": None,
+}
+
 
 def get_board_ref(size: str):
     if size not in ACTIVE_BOARDS:
@@ -98,6 +104,48 @@ async def solve_board(size: str = "small"):
             grid[row][col] = solved_grid[row][col]
 
     return {"grid": grid}
+
+
+@app.post("/set-puzzle")
+async def set_puzzle(size: str = "small"):
+    """Store the current board as the puzzle to solve. User can then fill in guesses and use check-mistakes."""
+    grid = get_board_ref(size)
+    if size not in PUZZLE_BOARDS:
+        raise HTTPException(status_code=400, detail="Invalid board size.")
+    PUZZLE_BOARDS[size] = deepcopy(grid)
+    return {"ok": True}
+
+
+@app.get("/puzzle")
+async def get_puzzle_status(size: str = "small"):
+    """Return whether a puzzle has been set for this size (so UI can enable Find mistakes)."""
+    if size not in PUZZLE_BOARDS:
+        raise HTTPException(status_code=400, detail="Invalid board size.")
+    return {"set": PUZZLE_BOARDS[size] is not None}
+
+
+@app.post("/check-mistakes")
+async def check_mistakes(size: str = "small"):
+    """
+    Compare the current board (user's answers) with the solution of the stored puzzle.
+    Returns list of { row, col, userValue, correctValue } for each filled cell that is wrong.
+    """
+    if size not in PUZZLE_BOARDS or PUZZLE_BOARDS[size] is None:
+        raise HTTPException(status_code=400, detail="No puzzle set. Set the current board as the puzzle first.")
+    puzzle = PUZZLE_BOARDS[size]
+    solved = deepcopy(puzzle)
+    if not solver(solved):
+        raise HTTPException(status_code=400, detail="Stored puzzle is unsolvable.")
+    user_grid = get_board_ref(size)
+    mistakes = []
+    for r in range(len(user_grid)):
+        for c in range(len(user_grid[r])):
+            uv = user_grid[r][c]
+            if uv in (0, 7):
+                continue
+            if uv != solved[r][c]:
+                mistakes.append({"row": r, "col": c, "userValue": uv, "correctValue": solved[r][c]})
+    return {"mistakes": mistakes}
 
 
 def check_valid_number(board, row, col, num, cell_state):

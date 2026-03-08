@@ -74,6 +74,10 @@ function App() {
   const [clearingBoard, setClearingBoard] = useState(false);
   const [solvingBoard, setSolvingBoard] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const [puzzleSet, setPuzzleSet] = useState(false);
+  const [mistakes, setMistakes] = useState([]);
+  const [settingPuzzle, setSettingPuzzle] = useState(false);
+  const [checkingMistakes, setCheckingMistakes] = useState(false);
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -92,12 +96,28 @@ function App() {
       }
 
       setGrid(data.grid);
+      setMistakes([]);
     } catch (err) {
       setError(err.message || "Failed to load board.");
     } finally {
       setLoading(false);
     }
   }, [boardSize]);
+
+  const fetchPuzzleStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/puzzle?size=${boardSize}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setPuzzleSet(data.set === true);
+    } catch {
+      setPuzzleSet(false);
+    }
+  }, [boardSize]);
+
+  useEffect(() => {
+    if (!loading && !error) fetchPuzzleStatus();
+  }, [loading, error, fetchPuzzleStatus]);
 
   useEffect(() => {
     fetchBoard();
@@ -156,6 +176,7 @@ function App() {
       }
 
       setGrid(data.grid);
+      setMistakes([]);
       setSaveStatus("Board solved.");
     } catch (err) {
       setSaveStatus(err.message || "Failed to solve board.");
@@ -187,11 +208,63 @@ function App() {
       }
 
       setGrid(data.grid);
+      setMistakes([]);
       setSaveStatus("Board cleared.");
+      fetchPuzzleStatus();
     } catch (err) {
       setSaveStatus(err.message || "Failed to clear board.");
     } finally {
       setClearingBoard(false);
+    }
+  }, [boardSize, fetchPuzzleStatus]);
+
+  const handleSetPuzzle = useCallback(async () => {
+    setSettingPuzzle(true);
+    setSaveStatus("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/set-puzzle?size=${boardSize}`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || `Set puzzle failed: ${response.status}`);
+      }
+      setMistakes([]);
+      setPuzzleSet(true);
+      setSaveStatus("Current board set as puzzle. Fill in your answers and use Find mistakes.");
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to set puzzle.");
+    } finally {
+      setSettingPuzzle(false);
+    }
+  }, [boardSize]);
+
+  const handleCheckMistakes = useCallback(async () => {
+    setCheckingMistakes(true);
+    setSaveStatus("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/check-mistakes?size=${boardSize}`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || `Check mistakes failed: ${response.status}`);
+      }
+
+      const list = data.mistakes || [];
+      setMistakes(list);
+      if (list.length === 0) {
+        setSaveStatus("No mistakes — all filled cells are correct!");
+      } else {
+        setSaveStatus(`${list.length} mistake(s) found. Incorrect cells are highlighted.`);
+      }
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to check mistakes.");
+    } finally {
+      setCheckingMistakes(false);
     }
   }, [boardSize]);
 
@@ -246,11 +319,21 @@ function App() {
         }
 
         setGrid(data.grid);
+        setMistakes((prev) => prev.filter((m) => m.row !== row || m.col !== col));
       } catch (err) {
         window.alert(err.message || "Failed to update cell.");
       }
     },
     [boardSize]
+  );
+
+  const isMistakeCell = useCallback(
+    (row, col) => mistakes.some((m) => m.row === row && m.col === col),
+    [mistakes]
+  );
+  const getMistakeInfo = useCallback(
+    (row, col) => mistakes.find((m) => m.row === row && m.col === col),
+    [mistakes]
   );
 
   return (
@@ -294,6 +377,25 @@ function App() {
         >
           {solvingBoard ? "Solving..." : "Solve board"}
         </button>
+        <button
+          type="button"
+          onClick={handleSetPuzzle}
+          disabled={
+            loading || settingPuzzle || solvingBoard || clearingBoard || savingBoard || grid.length === 0
+          }
+        >
+          {settingPuzzle ? "Setting..." : "Set as puzzle"}
+        </button>
+        <button
+          type="button"
+          onClick={handleCheckMistakes}
+          disabled={
+            loading || checkingMistakes || !puzzleSet || solvingBoard || clearingBoard || grid.length === 0
+          }
+          title={!puzzleSet ? "Set a puzzle first" : "Compare your answers with the solution"}
+        >
+          {checkingMistakes ? "Checking..." : "Find mistakes"}
+        </button>
       </div>
 
       {loading && <p>Loading board...</p>}
@@ -316,6 +418,8 @@ function App() {
                 const vertices = getTriangleVertices(rowIndex, colIndex, upParity);
                 const center = centroid(vertices);
                 const displayValue = isFilledValue(cellValue) ? cellValue : "";
+                const mistake = isMistakeCell(rowIndex, colIndex);
+                const mistakeInfo = getMistakeInfo(rowIndex, colIndex);
 
                 return (
                   <g
@@ -325,18 +429,23 @@ function App() {
                   >
                     <polygon
                       points={polygonPoints(vertices)}
-                      className="cell-triangle"
+                      className={`cell-triangle${mistake ? " cell-mistake" : ""}`}
                     />
                     {displayValue !== "" && (
                       <text
                         x={center.x}
                         y={center.y}
-                        className="cell-value"
+                        className={`cell-value${mistake ? " cell-value-mistake" : ""}`}
                         dominantBaseline="middle"
                         textAnchor="middle"
                       >
                         {displayValue}
                       </text>
+                    )}
+                    {mistake && mistakeInfo && (
+                      <title>
+                        Your answer: {mistakeInfo.userValue}. Correct: {mistakeInfo.correctValue}
+                      </title>
                     )}
                   </g>
                 );

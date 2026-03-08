@@ -71,3 +71,18 @@
   user-select: none;
   pointer-events: none;
 }
+
+.cell-mistake {
+  fill: #ffebee;
+  stroke: #c62828;
+  stroke-width: 3;
+}
+
+.cell-group:hover .cell-mistake {
+  fill: #ffcdd2;
+}
+
+.cell-value-mistake {
+  fill: #b71c1c;
+  font-weight: 800;
+}
