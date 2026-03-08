@@ -1,0 +1,73 @@
+  .app {
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  color: #111;
+}
+
+.app h1 {
+  margin: 0 0 16px;
+}
+
+.board-size-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.board-size-controls button {
+  border: 1px solid #111;
+  background: #fff;
+  color: #111;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.board-size-controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: #b00020;
+}
+
+.board-wrapper {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.board-svg {
+  width: min(95vw, 900px);
+  height: auto;
+}
+
+.cell-group {
+  cursor: pointer;
+}
+
+.cell-triangle {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 2;
+  transition: fill 0.15s ease;
+}
+
+.cell-group:hover .cell-triangle {
+  fill: #f0f7ff;
+}
+
+.cell-value {
+  font-size: 20px;
+  font-weight: 700;
+  fill: #111;
+  user-select: none;
+  pointer-events: none;
+}
