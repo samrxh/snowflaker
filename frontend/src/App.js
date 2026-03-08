@@ -70,10 +70,13 @@ function App() {
   const [boardSize, setBoardSize] = useState("small"); // "small" | "big"
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [savingBoard, setSavingBoard] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSaveStatus("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/board?size=${boardSize}`);
@@ -98,6 +101,36 @@ function App() {
     fetchBoard();
   }, [fetchBoard]);
 
+  const handleSaveBoard = useCallback(async () => {
+    setSavingBoard(true);
+    setSaveStatus("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/save-board`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(grid),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Save board failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const savePath =
+        data && typeof data.path === "string"
+          ? data.path
+          : "Board saved successfully.";
+      setSaveStatus(`Saved board to: ${savePath}`);
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to save board.");
+    } finally {
+      setSavingBoard(false);
+    }
+  }, [grid]);
+
   const svgSize = useMemo(() => {
     if (grid.length === 0) {
       return { width: 400, height: 300 };
@@ -117,6 +150,7 @@ function App() {
       if (!isPlayableCell(value)) {
         return;
       }
+      setSaveStatus("");
 
       const userInput = window.prompt(
         "Enter a value for this cell (1-6). Leave blank to cancel."
@@ -173,10 +207,18 @@ function App() {
         >
           Big board
         </button>
+        <button
+          type="button"
+          onClick={handleSaveBoard}
+          disabled={loading || savingBoard || grid.length === 0}
+        >
+          {savingBoard ? "Saving..." : "Save board"}
+        </button>
       </div>
 
       {loading && <p>Loading board...</p>}
       {!loading && error && <p className="error">{error}</p>}
+      {!loading && !error && saveStatus && <p>{saveStatus}</p>}
 
       {!loading && !error && (
         <div className="board-wrapper">
