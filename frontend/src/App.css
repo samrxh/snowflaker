@@ -64,6 +64,14 @@
   fill: #f0f7ff;
 }
 
+.cell-triangle.cell-selected {
+  fill: #bbdefb;
+}
+
+.cell-group:hover .cell-triangle.cell-selected {
+  fill: #90caf9;
+}
+
 .cell-value {
   font-size: 20px;
   font-weight: 700;

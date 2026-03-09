@@ -78,6 +78,7 @@ function App() {
   const [mistakes, setMistakes] = useState([]);
   const [settingPuzzle, setSettingPuzzle] = useState(false);
   const [checkingMistakes, setCheckingMistakes] = useState(false);
+  const [selectedCell, setSelectedCell] = useState(null); // { row, col } or null
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -282,30 +283,11 @@ function App() {
 
   const upParity = useMemo(() => getUpParityFromShape(grid), [grid]);
 
-  const handleCellClick = useCallback(
+  const applyValueToCell = useCallback(
     async (row, col, value) => {
-      if (!isPlayableCell(value)) {
-        return;
-      }
-      setSaveStatus("");
-
-      const userInput = window.prompt(
-        "Enter a value for this cell (1-6). Leave blank to cancel."
-      );
-
-      if (userInput === null || userInput.trim() === "") {
-        return;
-      }
-
-      const parsedValue = Number(userInput.trim());
-      if (!Number.isInteger(parsedValue) || parsedValue < 1 || parsedValue > 6) {
-        window.alert("Only numbers 1 through 6 are allowed.");
-        return;
-      }
-
       try {
         const response = await fetch(
-          `${API_BASE_URL}/update?row=${row}&col=${col}&value=${parsedValue}&size=${boardSize}`,
+          `${API_BASE_URL}/update?row=${row}&col=${col}&value=${value}&size=${boardSize}`,
           { method: "POST" }
         );
 
@@ -326,6 +308,33 @@ function App() {
     },
     [boardSize]
   );
+
+  const handleCellClick = useCallback((row, col, value) => {
+    if (!isPlayableCell(value)) {
+      return;
+    }
+    setSaveStatus("");
+    setSelectedCell({ row, col });
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCell) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setSelectedCell(null);
+        return;
+      }
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= 6) {
+        e.preventDefault();
+        applyValueToCell(selectedCell.row, selectedCell.col, num);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedCell, applyValueToCell]);
 
   const isMistakeCell = useCallback(
     (row, col) => mistakes.some((m) => m.row === row && m.col === col),
@@ -420,6 +429,10 @@ function App() {
                 const displayValue = isFilledValue(cellValue) ? cellValue : "";
                 const mistake = isMistakeCell(rowIndex, colIndex);
                 const mistakeInfo = getMistakeInfo(rowIndex, colIndex);
+                const selected =
+                  selectedCell &&
+                  selectedCell.row === rowIndex &&
+                  selectedCell.col === colIndex;
 
                 return (
                   <g
@@ -429,7 +442,7 @@ function App() {
                   >
                     <polygon
                       points={polygonPoints(vertices)}
-                      className={`cell-triangle${mistake ? " cell-mistake" : ""}`}
+                      className={`cell-triangle${mistake ? " cell-mistake" : ""}${selected ? " cell-selected" : ""}`}
                     />
                     {displayValue !== "" && (
                       <text

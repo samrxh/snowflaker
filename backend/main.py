@@ -61,6 +61,11 @@ PUZZLE_BOARDS = {
     "small": None,
     "big": None,
 }
+# Solution computed once when the puzzle is set.
+PUZZLE_SOLUTIONS = {
+    "small": None,
+    "big": None,
+}
 
 
 def get_board_ref(size: str):
@@ -108,11 +113,16 @@ async def solve_board(size: str = "small"):
 
 @app.post("/set-puzzle")
 async def set_puzzle(size: str = "small"):
-    """Store the current board as the puzzle to solve. User can then fill in guesses and use check-mistakes."""
+    """Store the current board as the puzzle to solve and compute the solution once."""
     grid = get_board_ref(size)
     if size not in PUZZLE_BOARDS:
         raise HTTPException(status_code=400, detail="Invalid board size.")
-    PUZZLE_BOARDS[size] = deepcopy(grid)
+    puzzle = deepcopy(grid)
+    solution = deepcopy(puzzle)
+    if not solver(solution):
+        raise HTTPException(status_code=400, detail="Board is unsolvable.")
+    PUZZLE_BOARDS[size] = puzzle
+    PUZZLE_SOLUTIONS[size] = solution
     return {"ok": True}
 
 
@@ -127,15 +137,12 @@ async def get_puzzle_status(size: str = "small"):
 @app.post("/check-mistakes")
 async def check_mistakes(size: str = "small"):
     """
-    Compare the current board (user's answers) with the solution of the stored puzzle.
+    Compare the current board (user's answers) with the stored solution.
     Returns list of { row, col, userValue, correctValue } for each filled cell that is wrong.
     """
-    if size not in PUZZLE_BOARDS or PUZZLE_BOARDS[size] is None:
+    if size not in PUZZLE_SOLUTIONS or PUZZLE_SOLUTIONS[size] is None:
         raise HTTPException(status_code=400, detail="No puzzle set. Set the current board as the puzzle first.")
-    puzzle = PUZZLE_BOARDS[size]
-    solved = deepcopy(puzzle)
-    if not solver(solved):
-        raise HTTPException(status_code=400, detail="Stored puzzle is unsolvable.")
+    solved = PUZZLE_SOLUTIONS[size]
     user_grid = get_board_ref(size)
     mistakes = []
     for r in range(len(user_grid)):
