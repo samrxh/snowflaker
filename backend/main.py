@@ -94,6 +94,10 @@ async def save_board(board: list[list[int]]):
 async def clear_board(size: str = "small"):
     grid = get_board_ref(size)
     grid[:] = deepcopy(BOARD_TEMPLATES[size])
+    if size in PUZZLE_BOARDS:
+        PUZZLE_BOARDS[size] = None
+    if size in PUZZLE_SOLUTIONS:
+        PUZZLE_SOLUTIONS[size] = None
     return {"grid": grid}
 
 @app.post("/solve-board")
@@ -132,6 +136,20 @@ async def get_puzzle_status(size: str = "small"):
     if size not in PUZZLE_BOARDS:
         raise HTTPException(status_code=400, detail="Invalid board size.")
     return {"set": PUZZLE_BOARDS[size] is not None}
+
+
+@app.get("/puzzle-givens")
+async def get_puzzle_givens(size: str = "small"):
+    """Return [row, col] for each cell that was pre-filled when the puzzle was set (not editable)."""
+    if size not in PUZZLE_BOARDS or PUZZLE_BOARDS[size] is None:
+        return {"givens": []}
+    grid = PUZZLE_BOARDS[size]
+    givens = []
+    for r in range(len(grid)):
+        for c in range(len(grid[r])):
+            if grid[r][c] in (1, 2, 3, 4, 5, 6):
+                givens.append([r, c])
+    return {"givens": givens}
 
 
 @app.post("/check-mistakes")

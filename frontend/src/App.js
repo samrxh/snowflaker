@@ -75,6 +75,7 @@ function App() {
   const [solvingBoard, setSolvingBoard] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [puzzleSet, setPuzzleSet] = useState(false);
+  const [puzzleGivens, setPuzzleGivens] = useState(() => new Set()); // Set of "row,col" - cells that are part of the puzzle and not editable
   const [mistakes, setMistakes] = useState([]);
   const [settingPuzzle, setSettingPuzzle] = useState(false);
   const [checkingMistakes, setCheckingMistakes] = useState(false);
@@ -116,9 +117,26 @@ function App() {
     }
   }, [boardSize]);
 
+  const fetchPuzzleGivens = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/puzzle-givens?size=${boardSize}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const list = Array.isArray(data.givens) ? data.givens : [];
+      setPuzzleGivens(new Set(list.map(([r, c]) => `${r},${c}`)));
+    } catch {
+      setPuzzleGivens(new Set());
+    }
+  }, [boardSize]);
+
   useEffect(() => {
     if (!loading && !error) fetchPuzzleStatus();
   }, [loading, error, fetchPuzzleStatus]);
+
+  useEffect(() => {
+    if (!loading && !error && puzzleSet) fetchPuzzleGivens();
+    if (!puzzleSet) setPuzzleGivens(new Set());
+  }, [loading, error, puzzleSet, fetchPuzzleGivens]);
 
   useEffect(() => {
     fetchBoard();
@@ -233,13 +251,14 @@ function App() {
       }
       setMistakes([]);
       setPuzzleSet(true);
+      await fetchPuzzleGivens();
       setSaveStatus("Current board set as puzzle. Fill in your answers and use Find mistakes.");
     } catch (err) {
       setSaveStatus(err.message || "Failed to set puzzle.");
     } finally {
       setSettingPuzzle(false);
     }
-  }, [boardSize]);
+  }, [boardSize, fetchPuzzleGivens]);
 
   const handleCheckMistakes = useCallback(async () => {
     setCheckingMistakes(true);
@@ -309,13 +328,24 @@ function App() {
     [boardSize]
   );
 
-  const handleCellClick = useCallback((row, col, value) => {
-    if (!isPlayableCell(value)) {
-      return;
-    }
-    setSaveStatus("");
-    setSelectedCell({ row, col });
-  }, []);
+  const isGivenCell = useCallback(
+    (row, col) => puzzleGivens.has(`${row},${col}`),
+    [puzzleGivens]
+  );
+
+  const handleCellClick = useCallback(
+    (row, col, value) => {
+      if (!isPlayableCell(value)) {
+        return;
+      }
+      if (isGivenCell(row, col)) {
+        return;
+      }
+      setSaveStatus("");
+      setSelectedCell({ row, col });
+    },
+    [isGivenCell]
+  );
 
   useEffect(() => {
     if (!selectedCell) return;
@@ -433,16 +463,17 @@ function App() {
                   selectedCell &&
                   selectedCell.row === rowIndex &&
                   selectedCell.col === colIndex;
+                const given = isGivenCell(rowIndex, colIndex);
 
                 return (
                   <g
                     key={`${rowIndex}-${colIndex}`}
-                    className="cell-group"
+                    className={`cell-group${given ? " cell-group-given" : ""}`}
                     onClick={() => handleCellClick(rowIndex, colIndex, cellValue)}
                   >
                     <polygon
                       points={polygonPoints(vertices)}
-                      className={`cell-triangle${mistake ? " cell-mistake" : ""}${selected ? " cell-selected" : ""}`}
+                      className={`cell-triangle${mistake ? " cell-mistake" : ""}${selected ? " cell-selected" : ""}${given ? " cell-given" : ""}`}
                     />
                     {displayValue !== "" && (
                       <text

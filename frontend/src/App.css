@@ -72,6 +72,18 @@
   fill: #90caf9;
 }
 
+.cell-triangle.cell-given {
+  fill: #dcc8ef;
+}
+
+.cell-group-given {
+  cursor: default;
+}
+
+.cell-group-given:hover .cell-triangle.cell-given {
+  fill: #e8e0f0;
+}
+
 .cell-value {
   font-size: 20px;
   font-weight: 700;
