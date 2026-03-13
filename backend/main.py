@@ -105,14 +105,15 @@ async def solve_board(size: str = "small"):
     grid = get_board_ref(size)
 
     solved_grid = deepcopy(grid)
-    if not solver(solved_grid):
+    counter = {"iterations": 0}
+    if not solver(solved_grid, counter=counter):
         raise HTTPException(status_code=400, detail="Board is unsolvable.")
 
     for row in range(len(grid)):
         for col in range(len(grid[row])):
             grid[row][col] = solved_grid[row][col]
 
-    return {"grid": grid}
+    return {"grid": grid, "iterations": counter["iterations"]}
 
 
 @app.post("/set-puzzle")
@@ -123,11 +124,12 @@ async def set_puzzle(size: str = "small"):
         raise HTTPException(status_code=400, detail="Invalid board size.")
     puzzle = deepcopy(grid)
     solution = deepcopy(puzzle)
-    if not solver(solution):
+    counter = {"iterations": 0}
+    if not solver(solution, counter=counter):
         raise HTTPException(status_code=400, detail="Board is unsolvable.")
     PUZZLE_BOARDS[size] = puzzle
     PUZZLE_SOLUTIONS[size] = solution
-    return {"ok": True}
+    return {"ok": True, "iterations": counter["iterations"]}
 
 
 @app.get("/puzzle")
@@ -217,7 +219,13 @@ def check_valid_number(board, row, col, num, cell_state):
 
 
 # this will scan the board for an empty cell with the fewest possible valid numbers and then start with solving that
-def solver(board):
+def solver(board, counter=None):
+    # counter tracks how many recursive solver calls are made.
+    # If not provided, create a local one so existing callers still work.
+    if counter is None:
+        counter = {"iterations": 0}
+
+    counter["iterations"] += 1
     best_r, best_c, best_state = -1, -1, None
     min_options = 10
 
@@ -259,7 +267,7 @@ def solver(board):
             board[best_r][best_c] = i
 
             # Recursively try to solve the rest of the board
-            if solver(board):
+            if solver(board, counter=counter):
                 return True
 
             # It didn't work out, reset the cell state and try the next number

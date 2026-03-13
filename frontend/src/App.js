@@ -196,7 +196,14 @@ function App() {
 
       setGrid(data.grid);
       setMistakes([]);
-      setSaveStatus("Board solved.");
+
+      const iterations =
+        data && typeof data.iterations === "number" ? data.iterations : null;
+      if (iterations != null) {
+        setSaveStatus(`Board solved in ${iterations} iteration${iterations === 1 ? "" : "s"}.`);
+      } else {
+        setSaveStatus("Board solved.");
+      }
     } catch (err) {
       setSaveStatus(err.message || "Failed to solve board.");
     } finally {
@@ -249,10 +256,22 @@ function App() {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || `Set puzzle failed: ${response.status}`);
       }
+      const data = await response.json().catch(() => ({}));
       setMistakes([]);
       setPuzzleSet(true);
       await fetchPuzzleGivens();
-      setSaveStatus("Current board set as puzzle. Fill in your answers and use Find mistakes.");
+
+      const iterations =
+        data && typeof data.iterations === "number" ? data.iterations : null;
+      if (iterations != null) {
+        setSaveStatus(
+          `Current board set as puzzle (solver needed ${iterations} iteration${
+            iterations === 1 ? "" : "s"
+          }). Fill in your answers and use Find mistakes.`
+        );
+      } else {
+        setSaveStatus("Current board set as puzzle. Fill in your answers and use Find mistakes.");
+      }
     } catch (err) {
       setSaveStatus(err.message || "Failed to set puzzle.");
     } finally {
